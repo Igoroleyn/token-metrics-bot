@@ -51,41 +51,26 @@
       metricsDiv.innerHTML = "⏳ Fetching metrics...";
 
       try {
-        const [
-          priceRes,
-          volLiqRes,
-          holdersRes,
-          growthRes,
-          tradersRes
-        ] = await Promise.all([
+        const [priceRes, volumeLiquidityRes, volumeHoldersRes] = await Promise.all([
           fetch(`/api/getprice-orca?mint=${mint}`),
           fetch(`/api/volume-liquidity?mint=${mint}`),
-          fetch(`/api/volume-holders?mint=${mint}`),
-          fetch(`/api/holders-growth?mint=${mint}`),
-          fetch(`/api/unique-traders?mint=${mint}`)
+          fetch(`/api/volume-holders?mint=${mint}`)
         ]);
 
         const priceData = await priceRes.json();
-        const volLiqData = await volLiqRes.json();
-        const holdersData = await holdersRes.json();
-        const growthData = await growthRes.json();
-        const tradersData = await tradersRes.json();
+        const volLiqData = await volumeLiquidityRes.json();
+        const volHoldData = await volumeHoldersRes.json();
 
-        if (
-          priceData.error ||
-          volLiqData.error ||
-          holdersData.error ||
-          growthData.error ||
-          tradersData.error
-        ) {
+        if (priceData.error || volLiqData.error || volHoldData.error) {
           metricsDiv.innerHTML = `<span style="color:red">⚠️ Failed to load some data</span>`;
         } else {
           metricsDiv.innerHTML = `
             💰 <b>Price:</b> ${priceData.price}<br/>
             📊 <b>Volume/Liquidity:</b> ${volLiqData.ratio}<br/>
-            👥 <b>Holders:</b> ${holdersData.holdersCount}<br/>
-            📈 <b>Holders Growth (5m):</b> ${growthData.growth}<br/>
-            🧍‍♂️🧍‍♀️ <b>Unique Traders (5m):</b> ${tradersData.count}
+            🧮 <b>Volume/Holders:</b> ${volHoldData.volume_per_holder}<br/>
+            👥 <b>Holders:</b> ${volHoldData.holders}<br/>
+            💧 <b>Liquidity:</b> ${volHoldData.liquidity}<br/>
+            📈 <b>Volume:</b> ${volHoldData.volume}
           `;
         }
       } catch (err) {

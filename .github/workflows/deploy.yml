@@ -2,8 +2,8 @@ name: Auto Update Metrics
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
-  workflow_dispatch:
+    - cron: '*/5 * * * *'  # Каждые 5 минут
+  workflow_dispatch:       # Запуск вручную
 
 jobs:
   update:

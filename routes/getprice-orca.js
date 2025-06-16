@@ -1,13 +1,13 @@
 import express from "express";
 import dotenv from "dotenv";
 import { Connection } from "@solana/web3.js";
-import orcaSdk from "@orca-so/sdk";
+import pkg from "@orca-so/sdk"; // <-- вот тут ключевое исправление
 
 dotenv.config();
 
-const router = express.Router();
-const { getOrca, getTokenByMint } = orcaSdk;
+const { getOrca, getTokenByMint } = pkg;
 
+const router = express.Router();
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
 const connection = new Connection(RPC_URL, "confirmed");
 

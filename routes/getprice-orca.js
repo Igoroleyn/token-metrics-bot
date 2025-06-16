@@ -6,6 +6,8 @@ import orcaSdk from "@orca-so/sdk";
 dotenv.config();
 
 const router = express.Router();
+const { getOrca, getTokenByMint } = orcaSdk;
+
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
 const connection = new Connection(RPC_URL, "confirmed");
 
@@ -16,9 +18,9 @@ router.get("/", async (req, res) => {
       return res.status(400).json({ error: "Missing mint parameter" });
     }
 
-    const orca = orcaSdk.getOrca(connection);
+    const orca = getOrca(connection);
     const sol = orca.getToken("SOL");
-    const token = orca.getToken(mint);
+    const token = getTokenByMint(mint);
 
     let pool;
     try {
@@ -35,7 +37,7 @@ router.get("/", async (req, res) => {
     res.json({ mint, price: price.toNumber() });
 
   } catch (err) {
-    console.error("Ошибка в getprice-orca:", err);
+    console.error("❌ Ошибка в getprice-orca:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

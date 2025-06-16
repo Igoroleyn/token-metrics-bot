@@ -1,8 +1,10 @@
-const express = require("express");
+import express from "express";
+import { getOrca, getTokenByMint } from "@orca-so/sdk";
+import { Connection, PublicKey } from "@solana/web3.js";
+import dotenv from "dotenv";
+dotenv.config();
+
 const router = express.Router();
-const { getOrca, getTokenByMint } = require("@orca-so/sdk");
-const { Connection, PublicKey } = require("@solana/web3.js");
-require("dotenv").config();
 
 const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
 const connection = new Connection(RPC_URL, "confirmed");
@@ -21,7 +23,7 @@ router.get("/", async (req, res) => {
     let pool;
     try {
       pool = await orca.getPool(sol, tokenA);
-    } catch (err) {
+    } catch {
       try {
         pool = await orca.getPool(tokenA, sol);
       } catch {
@@ -33,9 +35,9 @@ router.get("/", async (req, res) => {
     res.json({ mint, price: price.toNumber() });
 
   } catch (err) {
-    console.error("Ошибка в getprice-orca:", err);
+    console.error("❌ Ошибка в getprice-orca:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-module.exports = router;
+export default router;

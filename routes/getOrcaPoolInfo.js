@@ -1,16 +1,19 @@
 import { getOrca, Network } from "@orca-so/sdk";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { Connection } from "@solana/web3.js";
 import dotenv from "dotenv";
+
 dotenv.config();
 
-const connection = new Connection(process.env.RPC_URL);
+const rpcUrl = process.env.RPC_URL;
+if (!rpcUrl || !rpcUrl.startsWith("http")) {
+  throw new Error("Invalid or missing RPC_URL in .env");
+}
 
-/**
- * Получает резервы пула Orca по адресу mint.
- */
+const connection = new Connection(rpcUrl);
+
 export async function getOrcaPoolReserves(mintAddress) {
   const orca = getOrca(connection, Network.MAINNET);
-  const pools = orca.getAllPools();
+  const pools = await orca.getAllPools(); // предполагаю, что getAllPools - асинхронная функция
 
   for (const [name, pool] of Object.entries(pools)) {
     const tokenA = await pool.getTokenA();
@@ -37,7 +40,7 @@ export async function getOrcaPoolReserves(mintAddress) {
       return {
         volumeInSol,
         liquidityInSol,
-        poolName: name
+        poolName: name,
       };
     }
   }

@@ -1,43 +1,35 @@
 import express from "express";
-import dotenv from "dotenv";
-import { Connection } from "@solana/web3.js";
-import pkg from "@orca-so/sdk"; // <-- вот тут ключевое исправление
-
-dotenv.config();
-
-const { getOrca, getTokenByMint } = pkg;
+import { getRotatingConnection } from "../utils/rpc-connection.js";
+import { getOrca, Network } from "@orca-so/sdk";
 
 const router = express.Router();
-const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
-const connection = new Connection(RPC_URL, "confirmed");
 
-router.get("/", async (req, res) => {
+router.post("/", async (req, res) => {
+  const { mint } = req.body;
+  if (!mint) return res.status(400).json({ error: "Missing mint" });
+
   try {
-    const mint = req.query.mint;
-    if (!mint) {
-      return res.status(400).json({ error: "Missing mint parameter" });
-    }
+    const connection = getRotatingConnection();
+    const orca = getOrca(connection, Network.MAINNET);
 
-    const orca = getOrca(connection);
-    const sol = orca.getToken("SOL");
-    const token = getTokenByMint(mint);
+    const pools = await orca.getAllPools();
 
-    let pool;
-    try {
-      pool = await orca.getPool(sol, token);
-    } catch {
-      try {
-        pool = await orca.getPool(token, sol);
-      } catch {
-        return res.status(404).json({ error: "Orca pool not found for given mint" });
+    for (const pool of Object.values(pools)) {
+      const tokenA = await pool.getTokenA();
+      const tokenB = await pool.getTokenB();
+
+      if (
+        tokenA.mint.toBase58() === mint ||
+        tokenB.mint.toBase58() === mint
+      ) {
+        const price = await pool.getTokenPrice(tokenA.mint.toBase58() === mint ? tokenA : tokenB);
+        return res.json({ price });
       }
     }
 
-    const price = await pool.getPrice();
-    res.json({ mint, price: price.toNumber() });
-
-  } catch (err) {
-    console.error("❌ Ошибка в getprice-orca:", err);
+    res.status(404).json({ error: "Pool not found for given mint" });
+  } catch (error) {
+    console.error("Error in getprice-orca:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

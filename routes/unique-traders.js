@@ -1,40 +1,42 @@
-// routes/unique-traders.js
 import express from "express";
-import { Connection, PublicKey } from "@solana/web3.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { getRotatingConnection } from "../utils/rpc-connection.js";
 
 const router = express.Router();
-const connection = new Connection(process.env.RPC_URL, "confirmed");
 
-router.get("/", async (req, res) => {
-  const { mint } = req.query;
-  if (!mint) return res.status(400).json({ error: "Missing mint param" });
+router.post("/", async (req, res) => {
+  const { mint } = req.body;
+  if (!mint) return res.status(400).json({ error: "Missing mint" });
 
   try {
-    const mintKey = new PublicKey(mint);
-    const now = Date.now();
-    const cutoff = now - 5 * 60 * 1000; // 5 минут назад
+    const connection = getRotatingConnection();
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - 300;
 
-    // Получаем все подписи по mint-адресу
-    const signatures = await connection.getSignaturesForAddress(mintKey, { limit: 100 });
-    const recent = signatures.filter(sig => sig.blockTime && sig.blockTime * 1000 >= cutoff);
+    const sigs = await connection.getSignaturesForAddress(
+      new PublicKey(mint),
+      { limit: 1000 }
+    );
 
-    const uniqueTraders = new Set();
+    const filteredSigs = sigs.filter(sig => (sig.blockTime || 0) >= fiveMinutesAgo);
 
-    for (const sig of recent) {
-      const tx = await connection.getParsedTransaction(sig.signature);
-      if (!tx || !tx.meta || !tx.transaction) continue;
+    const uniqueWallets = new Set();
 
-      const accounts = tx.transaction.message.accountKeys.map(k => k.pubkey.toString());
-      for (const acc of accounts) uniqueTraders.add(acc);
+    for (const sig of filteredSigs) {
+      const tx = await connection.getTransaction(sig.signature, { maxSupportedTransactionVersion: 0 });
+      if (!tx || !tx.transaction || !tx.meta) continue;
+
+      const accounts = tx.transaction.message.accountKeys.map(k => k.toBase58());
+      accounts.forEach(acc => {
+        if (acc !== mint) {
+          uniqueWallets.add(acc);
+        }
+      });
     }
 
-    res.json({ uniqueTraders: uniqueTraders.size });
-  } catch (err) {
-    console.error("/unique-traders error:", err);
-    res.status(500).json({ error: "Internal error" });
+    res.json({ uniqueTraders: uniqueWallets.size });
+  } catch (error) {
+    console.error("Error in unique-traders:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

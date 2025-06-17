@@ -1,30 +1,25 @@
 import express from "express";
-import { Connection, PublicKey } from "@solana/web3.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { getRotatingConnection } from "../utils/rpc-connection.js";
 
 const router = express.Router();
-const RPC_URL = process.env.RPC_URL || "https://api.mainnet-beta.solana.com";
-const connection = new Connection(RPC_URL, "confirmed");
 
-router.get("/", async (req, res) => {
+router.post("/", async (req, res) => {
+  const { mint } = req.body;
+  if (!mint) return res.status(400).json({ error: "Missing mint" });
+
   try {
-    const mint = req.query.mint;
-    if (!mint) {
-      return res.status(400).json({ error: "Missing mint parameter" });
-    }
+    const connection = getRotatingConnection();
 
-    const largestAccounts = await connection.getTokenLargestAccounts(
-      new PublicKey(mint)
-    );
+    // Реализуем подсчёт количества холдеров токена
+    // Пример (зависит от твоей логики и доступных методов):
 
+    const largestAccounts = await connection.getTokenLargestAccounts(mint);
     const holdersCount = largestAccounts.value.length;
 
-    res.json({ mint, holdersCount });
-  } catch (err) {
-    console.error("Ошибка в holders-count:", err);
-    res.status(500).json({ error: "Failed to fetch holders count" });
+    res.json({ holdersCount });
+  } catch (error) {
+    console.error("Error in holders-count:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

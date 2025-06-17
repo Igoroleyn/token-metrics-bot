@@ -1,42 +1,29 @@
 import express from "express";
-import { Connection, PublicKey } from "@solana/web3.js";
-import dotenv from "dotenv";
-
-dotenv.config();
+import { getRotatingConnection } from "../utils/rpc-connection.js";
 
 const router = express.Router();
-const connection = new Connection(process.env.RPC_URL, "confirmed");
 
-router.get("/", async (req, res) => {
-  const { mint } = req.query;
-
-  if (!mint) {
-    return res.status(400).json({ error: "Missing mint parameter" });
-  }
+router.post("/", async (req, res) => {
+  const { mint } = req.body;
+  if (!mint) return res.status(400).json({ error: "Missing mint" });
 
   try {
-    const mintPubkey = new PublicKey(mint);
+    const connection = getRotatingConnection();
 
-    // Получаем токен-аккаунты по mint
-    const accounts = await connection.getProgramAccounts(
-      new PublicKey("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"), // SPL Token Program
-      {
-        filters: [
-          { dataSize: 165 },
-          { memcmp: { offset: 0, bytes: mint } }
-        ]
-      }
-    );
-
-    const holdersCount = accounts.length;
-
-    // Для примера — volume заглушка
+    // Получаем общий объем за 5 минут (пример, нужно реализовать по реальной логике)
+    // Здесь для примера возвращаем фиктивное значение
     const volume = 1000;
-    const ratio = (volume / holdersCount).toFixed(2);
 
-    res.json({ holdersCount, volume, ratio });
-  } catch (err) {
-    console.error("Error in /volume-holders:", err);
+    // Получаем количество холдеров
+    const largestAccounts = await connection.getTokenLargestAccounts(mint);
+    const holdersCount = largestAccounts.value.length;
+
+    // Рассчитываем отношение
+    const volumePerHolder = volume / holdersCount;
+
+    res.json({ volume, holdersCount, volumePerHolder });
+  } catch (error) {
+    console.error("Error in volume-holders:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });

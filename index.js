@@ -1,8 +1,10 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
+const express = require("express");
+const cors = require("cors");
+const dotenv = require("dotenv");
+const path = require("path");
+const { fileURLToPath } = require("url");
+const { createRequire } = require("module");
+const require = createRequire(import.meta.url);
 
 // Загружаем переменные окружения
 dotenv.config();
@@ -17,13 +19,13 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// Роуты
-import getPriceOrca from "./routes/getprice-orca.js";
-import volumeLiquidity from "./routes/volume-liquidity.js";
-import volumeHolders from "./routes/volume-holders.js";
-import holdersCount from "./routes/holders-count.js";
-import holdersGrowth from "./routes/holders-growth.js";
-import uniqueTraders from "./routes/unique-traders.js";
+// Роуты (CommonJS require вместо import)
+const getPriceOrca = require("./routes/getprice-orca.js");
+const volumeLiquidity = require("./routes/volume-liquidity.js");
+const volumeHolders = require("./routes/volume-holders.js");
+const holdersCount = require("./routes/holders-count.js");
+const holdersGrowth = require("./routes/holders-growth.js");
+const uniqueTraders = require("./routes/unique-traders.js");
 
 app.use("/api/getprice-orca", getPriceOrca);
 app.use("/api/volume-liquidity", volumeLiquidity);

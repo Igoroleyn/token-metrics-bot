@@ -1,62 +1,42 @@
-// routes/unique-traders.js
 import express from "express";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { getOrca, OrcaPoolConfig } from "@orca-so/sdk";
-import dotenv from "dotenv";
+import { getRotatingConnection } from "../utils/rpc-connection.js";
+import { PublicKey } from "@solana/web3.js";
 
-dotenv.config();
 const router = express.Router();
-const RPC_URL = process.env.RPC_URL;
-const connection = new Connection(RPC_URL, "confirmed");
 
-router.get("/", async (req, res) => {
-  const mint = req.query.mint;
-  if (!mint) return res.status(400).json({ error: "Mint not provided" });
-
+router.post("/", async (req, res) => {
   try {
-    const orca = getOrca(connection);
-    const poolEntries = Object.entries(OrcaPoolConfig);
+    const { mint } = req.body;
+    if (!mint) return res.status(400).json({ error: "Missing mint" });
 
-    let poolConfig;
-    for (const [_, config] of poolEntries) {
-      const pool = await orca.getPool(config);
-      const tokenA = pool.getTokenA();
-      const tokenB = pool.getTokenB();
-      if (tokenA.mint.toBase58() === mint || tokenB.mint.toBase58() === mint) {
-        poolConfig = config;
-        break;
-      }
-    }
+    const connection = getRotatingConnection();
+    const mintPubkey = new PublicKey(mint);
 
-    if (!poolConfig) return res.status(404).json({ error: "Pool not found for token" });
+    const now = Math.floor(Date.now() / 1000);
+    const fiveMinutesAgo = now - 300;
 
-    const pool = await orca.getPool(poolConfig);
-    const now = Date.now();
-    const startTime = now - 5 * 60 * 1000;
+    const sigs = await connection.getSignaturesForAddress(mintPubkey, { limit: 1000 });
 
-    const signatures = await connection.getSignaturesForAddress(pool.getAddress(), { limit: 100 });
+    const filteredSigs = sigs.filter(sig => (sig.blockTime || 0) >= fiveMinutesAgo);
 
-    const uniqueTraders = new Set();
+    const uniqueWallets = new Set();
 
-    for (const sig of signatures) {
-      const tx = await connection.getParsedTransaction(sig.signature, "confirmed");
-      if (!tx || !tx.meta || !tx.transaction || !tx.blockTime) continue;
-      const timestamp = tx.blockTime * 1000;
-      if (timestamp < startTime) continue;
+    for (const sig of filteredSigs) {
+      const tx = await connection.getTransaction(sig.signature, { maxSupportedTransactionVersion: 0 });
+      if (!tx || !tx.transaction || !tx.meta) continue;
 
-      const accounts = tx.transaction.message.accountKeys.map(acc => acc.pubkey.toBase58());
-
-      for (const acc of accounts) {
-        if (!acc.startsWith("111111") && acc !== pool.getAddress().toBase58()) {
-          uniqueTraders.add(acc);
+      const accounts = tx.transaction.message.accountKeys.map(k => k.toBase58());
+      accounts.forEach(acc => {
+        if (acc !== mint) {
+          uniqueWallets.add(acc);
         }
-      }
+      });
     }
 
-    res.json({ uniqueTraders: uniqueTraders.size });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Failed to get unique traders" });
+    res.json({ uniqueTraders: uniqueWallets.size });
+  } catch (error) {
+    console.error("Error in unique-traders:", error);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 

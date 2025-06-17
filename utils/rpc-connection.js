@@ -1,14 +1,34 @@
 import { Connection } from "@solana/web3.js";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const RPC_ENDPOINTS = [
+  process.env.RPC_URL,
   "https://api.mainnet-beta.solana.com",
-  "https://solana-api.projectserum.com",
-  // Добавь сюда другие стабильные RPC, если есть
+  "https://rpc.ankr.com/solana"
 ];
 
-let lastIndex = 0;
+let currentIndex = 0;
+let currentConnection = new Connection(RPC_ENDPOINTS[currentIndex], "confirmed");
 
 export function getRotatingConnection() {
-  lastIndex = (lastIndex + 1) % RPC_ENDPOINTS.length;
-  return new Connection(RPC_ENDPOINTS[lastIndex], "confirmed");
+  return currentConnection;
+}
+
+export async function handleRpcError(error) {
+  if (
+    error?.message?.includes("429") ||
+    error?.message?.includes("403") ||
+    error?.message?.includes("401") ||
+    error?.code === 429 ||
+    error?.code === 403 ||
+    error?.code === 401
+  ) {
+    currentIndex = (currentIndex + 1) % RPC_ENDPOINTS.length;
+    currentConnection = new Connection(RPC_ENDPOINTS[currentIndex], "confirmed");
+    console.log(`Switched RPC to: ${RPC_ENDPOINTS[currentIndex]}`);
+    return true;
+  }
+  return false;
 }

@@ -1,24 +1,23 @@
 import express from "express";
 import { getRotatingConnection } from "../utils/rpc-connection.js";
+import { PublicKey } from "@solana/web3.js";
 
 const router = express.Router();
 
 router.post("/", async (req, res) => {
-  const { mint } = req.body;
-  if (!mint) return res.status(400).json({ error: "Missing mint" });
-
   try {
+    const { mint } = req.body;
+    if (!mint) return res.status(400).json({ error: "Missing mint" });
+
     const connection = getRotatingConnection();
+    const mintPubkey = new PublicKey(mint);
 
-    // Получаем общий объем за 5 минут (пример, нужно реализовать по реальной логике)
-    // Здесь для примера возвращаем фиктивное значение
-    const volume = 1000;
+    // TODO: Реализовать логику получения объёма за 5 минут или другой метрики
+    const volume = 1000; // заглушка для примера
 
-    // Получаем количество холдеров
-    const largestAccounts = await connection.getTokenLargestAccounts(mint);
+    const largestAccounts = await connection.getTokenLargestAccounts(mintPubkey);
     const holdersCount = largestAccounts.value.length;
 
-    // Рассчитываем отношение
     const volumePerHolder = volume / holdersCount;
 
     res.json({ volume, holdersCount, volumePerHolder });

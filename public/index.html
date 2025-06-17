@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Token Metrics</title>
   <style>
     body {
@@ -23,61 +23,79 @@
       padding: 10px 20px;
       border-radius: 8px;
       border: none;
-      background-color: #2979ff;
+      background-color: #0066ff;
       color: white;
       cursor: pointer;
     }
-    #metrics {
-      margin-top: 30px;
-      padding: 20px;
-      background-color: #222;
-      border-radius: 12px;
-      display: inline-block;
+    button:disabled {
+      background-color: #555;
+      cursor: not-allowed;
+    }
+    #result {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      text-align: left;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    #errorMsg {
+      color: #ff5555;
+      margin-left: 10px;
     }
   </style>
 </head>
 <body>
   <h1>📊 Token Metrics</h1>
-  <input type="text" id="mintInput" placeholder="Enter token mint" />
-  <button onclick="getMetrics()">Get Metrics</button>
-  <div id="metrics">🔍 Metrics will appear here...</div>
+  <input id="mintInput" type="text" placeholder="Enter token mint address" />
+  <button id="getMetricsBtn">Get Metrics</button>
+  <span id="errorMsg"></span>
+  <pre id="result"></pre>
 
   <script>
-    async function getMetrics() {
-      const mint = document.getElementById('mintInput').value.trim();
-      if (!mint) return;
+    const mintInput = document.getElementById("mintInput");
+    const getMetricsBtn = document.getElementById("getMetricsBtn");
+    const result = document.getElementById("result");
+    const errorMsg = document.getElementById("errorMsg");
 
-      const metricsDiv = document.getElementById('metrics');
-      metricsDiv.innerHTML = "⏳ Fetching metrics...";
+    getMetricsBtn.addEventListener("click", async () => {
+      const mint = mintInput.value.trim();
+      errorMsg.textContent = "";
+      result.textContent = "";
+
+      if (!mint) {
+        errorMsg.textContent = "Please enter a token mint address.";
+        return;
+      }
+
+      getMetricsBtn.disabled = true;
+      result.textContent = "Loading metrics...";
 
       try {
-        const [priceRes, volumeLiquidityRes, volumeHoldersRes] = await Promise.all([
-          fetch(`/api/getprice-orca?mint=${mint}`),
-          fetch(`/api/volume-liquidity?mint=${mint}`),
-          fetch(`/api/volume-holders?mint=${mint}`)
-        ]);
+        const response = await fetch("/api/test-all", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mint })
+        });
 
-        const priceData = await priceRes.json();
-        const volLiqData = await volumeLiquidityRes.json();
-        const volHoldData = await volumeHoldersRes.json();
-
-        if (priceData.error || volLiqData.error || volHoldData.error) {
-          metricsDiv.innerHTML = `<span style="color:red">⚠️ Failed to load some data</span>`;
-        } else {
-          metricsDiv.innerHTML = `
-            💰 <b>Price:</b> ${priceData.price}<br/>
-            📊 <b>Volume/Liquidity:</b> ${volLiqData.ratio}<br/>
-            🧮 <b>Volume/Holders:</b> ${volHoldData.volume_per_holder}<br/>
-            👥 <b>Holders:</b> ${volHoldData.holders}<br/>
-            💧 <b>Liquidity:</b> ${volHoldData.liquidity}<br/>
-            📈 <b>Volume:</b> ${volHoldData.volume}
-          `;
+        if (!response.ok) {
+          throw new Error(`Server responded with status ${response.status}`);
         }
-      } catch (err) {
-        console.error(err);
-        metricsDiv.innerHTML = `<span style="color:red">❌ Error loading metrics</span>`;
+
+        const data = await response.json();
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (error) {
+        errorMsg.textContent = "Error loading metrics: " + error.message;
+        result.textContent = "";
+      } finally {
+        getMetricsBtn.disabled = false;
       }
-    }
+    });
   </script>
 </body>
 </html>

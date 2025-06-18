@@ -1,24 +1,30 @@
-const express = require("express");
-const axios = require("axios");
+import express from "express";
+import axios from "axios";
+
 const router = express.Router();
 
 router.get("/:mint", async (req, res) => {
   const { mint } = req.params;
 
   try {
-    // Получение основной информации о токене
-    const tokenRes = await axios.get(`https://api.axion.trade/api/token/${mint}`);
+    // Заголовки, чтобы Axiom не отвергал запрос
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+    };
+
+    // 1. Получаем основную информацию о токене
+    const tokenRes = await axios.get(`https://api.axion.trade/api/token/${mint}`, { headers });
     const tokenData = tokenRes.data;
 
     if (!tokenData || !tokenData.symbol) {
       return res.status(404).json({ error: "Token not found on Axiom." });
     }
 
-    // Получение последних трейдов
-    const tradesRes = await axios.get(`https://api.axion.trade/api/trades/${mint}?limit=20`);
+    // 2. Получаем последние трейды
+    const tradesRes = await axios.get(`https://api.axion.trade/api/trades/${mint}?limit=20`, { headers });
     const trades = tradesRes.data || [];
 
-    // Подсчёт buy/sell
+    // 3. Подсчёт бай/селл
     let buyCount = 0;
     let sellCount = 0;
     trades.forEach(t => {
@@ -26,7 +32,7 @@ router.get("/:mint", async (req, res) => {
       else if (t.type === "sell") sellCount++;
     });
 
-    // Ответ
+    // 4. Ответ клиенту
     res.json({
       name: tokenData.name,
       symbol: tokenData.symbol,
@@ -43,8 +49,11 @@ router.get("/:mint", async (req, res) => {
 
   } catch (error) {
     console.error("Axiom API error:", error.message);
-    res.status(500).json({ error: "Failed to fetch data from Axiom API." });
+    res.status(500).json({
+      error: "Failed to fetch data from Axiom API.",
+      detail: error.message
+    });
   }
 });
 
-module.exports = router;
+export default router;

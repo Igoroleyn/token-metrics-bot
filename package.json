@@ -11,9 +11,11 @@
     "@orca-so/sdk": "^1.2.26",
     "@orca-so/whirlpools-sdk": "^0.14.0",
     "@solana/web3.js": "^1.98.2",
+    "axios": "^1.10.0",
     "cors": "^2.8.5",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.5.0",
-    "express": "^4.21.2"
+    "express": "^4.21.2",
+    "puppeteer": "^24.10.1"
   }
 }
